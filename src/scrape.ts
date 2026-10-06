@@ -74,6 +74,8 @@ export async function fetchReviewsResult(q: ReviewQuery): Promise<ReviewResult> 
         return t < stateT || (t === stateT && savedIds.includes(r.reviewId));
     };
     let complete = true;
+    // True when the run saw the real end of the new reviews: cutoff, empty page or 400/404.
+    let exhausted = false;
 
     for (let page = 1; page <= MAX_PAGES && out.length < q.maxReviews; page++) {
         let json;
@@ -83,6 +85,7 @@ export async function fetchReviewsResult(q: ReviewQuery): Promise<ReviewResult> 
             if (err instanceof HttpError && (err.status === 400 || err.status === 404)) {
                 // Apple answers 400/404 for pages past the end, or for a store without a feed.
                 if (page === 1) log.warning(`${q.appId}/${q.country}: no review feed for this store.`);
+                exhausted = true;
                 break;
             }
             if (page > 1) {
@@ -98,7 +101,10 @@ export async function fetchReviewsResult(q: ReviewQuery): Promise<ReviewResult> 
             // Apple sometimes serves an empty page-1 feed from a cache. Retry on both URL forms before giving up.
             reviews = await retryEmptyFirstPage(q, scrapedAt, json, sort);
         }
-        if (reviews.length === 0) break;
+        if (reviews.length === 0) {
+            exhausted = true;
+            break;
+        }
 
         let reachedCutoff = false;
         for (let i = 0; i < reviews.length; i++) {
@@ -114,14 +120,19 @@ export async function fetchReviewsResult(q: ReviewQuery): Promise<ReviewResult> 
             out.push(review);
             if (out.length >= q.maxReviews) {
                 const rest = reviews.slice(i + 1);
-                // More new reviews may exist on this page or on the next page.
-                if (rest.some((r) => !isOld(r) && matchesFilters(r, q)) || (rest.length === 0 && page < MAX_PAGES)) complete = false;
+                // On a newest-first feed, an old review after the cut proves no new review is left.
+                if (sort === 'mostrecent' && (reachedCutoff || rest.some(isOld))) exhausted = true;
                 break;
             }
         }
         // Only the newest-first feed lets us stop at the cutoff. A most-helpful feed has no date order.
-        if (reachedCutoff && sort === 'mostrecent') break;
+        if (reachedCutoff && sort === 'mostrecent') {
+            exhausted = true;
+            break;
+        }
     }
+    // Max reached or MAX_PAGES used up without the end of the feed: new reviews may be left unread.
+    if (!exhausted) complete = false;
     return { reviews: out, complete, newestSeen: newestState(seenReviews) };
 }
 

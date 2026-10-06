@@ -334,6 +334,24 @@ describe('rating and keyword filters', () => {
         assert.equal(done.complete, true);
         assert.equal(done.newestSeen?.reviewId, 'n1'); // n1 is no match, but it is the newest seen
     });
+    it('is incomplete when max fills and the rest of the page is new but non-matching', async () => {
+        const p1 = feedWith([['m1', 5, 'x'], ['x1', 2, 'x'], ['x2', 2, 'x']]);
+        const p2 = feedWith([['m4', 5, 'x']]);
+        p2.feed.entry.forEach((e) => (e.updated.label = '2025-12-01T00:00:00.000Z'));
+        const r = await fetchReviewsResult({ ...baseQ, maxReviews: 1, minRating: 5, fetchOptions: { fetchImpl: pagesOf({ 1: p1, 2: p2 }) } });
+        assert.deepEqual(r.reviews.map((x) => x.reviewId), ['m1']);
+        assert.equal(r.complete, false);
+    });
+    it('is incomplete when MAX_PAGES ends the run without the end of the feed', async () => {
+        const pages: Record<number, ReturnType<typeof feedWith>> = {};
+        for (let i = 1; i <= 10; i++) {
+            pages[i] = feedWith([[`p${i}`, 1, 'x']]);
+            pages[i].feed.entry.forEach((e) => (e.updated.label = new Date(Date.UTC(2026, 0, 1) - i * 1000).toISOString()));
+        }
+        const r = await fetchReviewsResult({ ...baseQ, maxReviews: 5, minRating: 5, fetchOptions: { fetchImpl: pagesOf(pages) } });
+        assert.deepEqual(r.reviews, []);
+        assert.equal(r.complete, false);
+    });
     it('onlyNewReviews: the next run skips filtered reviews', async () => {
         const p1 = feedWith([['n1', 1, 'x'], ['n2', 5, 'x'], ['n3', 1, 'x']]);
         const first = await fetchReviewsResult({ ...baseQ, maxReviews: 5, minRating: 5, fetchOptions: { fetchImpl: pagesOf({ 1: p1 }) } });
