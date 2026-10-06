@@ -434,3 +434,10 @@ describe('app fields and app rows', () => {
         assert.equal(review.appAverageRating, null);
     });
 });
+
+describe('app url', () => {
+    it('drops the ?uo= tracking parameter', () => {
+        const app = normaliseLookup(fixture('lookup.json'), '389801252', 'us', 'now');
+        assert.equal(app?.url, 'https://apps.apple.com/us/app/instagram/id389801252');
+    });
+});

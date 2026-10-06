@@ -60,7 +60,7 @@ export function normaliseLookup(json: any, appId: string, country: string, scrap
         version: result.version ?? '',
         releaseNotes: result.releaseNotes ?? null,
         genres: Array.isArray(result.genres) ? result.genres : [],
-        url: result.trackViewUrl ?? '',
+        url: typeof result.trackViewUrl === 'string' ? result.trackViewUrl.replace(/\?uo=\d+$/, '') : '',
         scrapedAt,
     };
 }

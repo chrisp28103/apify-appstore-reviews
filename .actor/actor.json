@@ -1,6 +1,6 @@
 {
   "actorSpecification": 1,
-  "name": "app-store-reviews-metadata",
+  "name": "apple-app-store-reviews-scraper",
   "title": "Apple App Store Reviews Scraper",
   "description": "Scrape Apple App Store reviews and app metadata from Apple's public feeds. Filter by star rating and keyword, scrape many countries in one run, and get only new reviews on each run (incremental).",
   "version": "1.0",
