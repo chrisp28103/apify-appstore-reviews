@@ -1,0 +1,18 @@
+{
+  "actorOutputSchemaVersion": 1,
+  "title": "App Store Reviews Scraper output",
+  "properties": {
+    "reviews": {
+      "type": "string",
+      "title": "Reviews",
+      "description": "One row per review, with the app name, developer and rating on each row.",
+      "template": "{{links.apiDefaultDatasetUrl}}/items?view=overview"
+    },
+    "apps": {
+      "type": "string",
+      "title": "Apps",
+      "description": "App metadata rows. Filled only in a metadata-only run (Include app metadata on, max reviews 0).",
+      "template": "{{links.apiDefaultDatasetUrl}}/items?view=apps"
+    }
+  }
+}
