@@ -22,6 +22,8 @@ export interface ResolvedInput {
 export interface ReviewItem {
     type: 'review';
     appId: string;
+    /** App name from the lookup API. Null when Apple has no lookup record for this store. */
+    appName?: string | null;
     country: string;
     reviewId: string;
     title: string;

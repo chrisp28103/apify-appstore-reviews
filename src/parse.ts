@@ -77,7 +77,7 @@ export function resolveInput(input: ActorInput | null | undefined): ResolvedInpu
         appIds,
         countries,
         maxReviewsPerApp,
-        includeMetadata: raw.includeMetadata ?? true,
+        includeMetadata: raw.includeMetadata ?? false,
         onlyNewReviews: raw.onlyNewReviews ?? false,
         sinceDate,
         stateKey: typeof raw.stateKey === 'string' ? raw.stateKey.trim().replace(/[^A-Za-z0-9!_.*'()-]/g, '-') : '',

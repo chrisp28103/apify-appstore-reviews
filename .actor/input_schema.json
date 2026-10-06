@@ -29,8 +29,8 @@
     "includeMetadata": {
       "title": "Include app metadata",
       "type": "boolean",
-      "description": "Add one app item for each app and country.",
-      "default": true
+      "description": "Add one app row (name, developer, average stars, price, version) for each app and country. See the Apps view in the output.",
+      "default": false
     },
     "onlyNewReviews": {
       "title": "Only new reviews",

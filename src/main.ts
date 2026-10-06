@@ -37,14 +37,16 @@ try {
         const tag = `${appId}/${country}`;
         if (limitReached) return;
 
+        // Always look up the app (free, no charge) so each review row carries the app name.
+        let app = null;
+        try {
+            app = await fetchAppMetadata(appId, country);
+        } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            log.warning(`${tag}: metadata failed (${msg}). Continuing with reviews.`);
+        }
+
         if (input.includeMetadata) {
-            let app = null;
-            try {
-                app = await fetchAppMetadata(appId, country);
-            } catch (err) {
-                const msg = err instanceof Error ? err.message : String(err);
-                log.warning(`${tag}: metadata failed (${msg}). Continuing with reviews.`);
-            }
             if (app) {
                 const charged = await charge('app-metadata');
                 if (charged.chargedCount < 1) {
@@ -70,6 +72,7 @@ try {
             sinceDate: input.sinceDate,
             state: previous,
         });
+        for (const r of reviews) r.appName = app?.name ?? null;
 
         const pushed = [];
         for (let i = 0; i < reviews.length && !limitReached; i += BATCH_SIZE) {

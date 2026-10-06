@@ -39,7 +39,7 @@ describe('resolveInput', () => {
         assert.deepEqual(r.appIds, ['123']);
         assert.deepEqual(r.countries, ['us']);
         assert.equal(r.maxReviewsPerApp, 100);
-        assert.equal(r.includeMetadata, true);
+        assert.equal(r.includeMetadata, false);
         assert.equal(r.warnings.length, 1);
     });
     it('clamps maxReviewsPerApp to 500', () => {

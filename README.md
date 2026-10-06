@@ -18,7 +18,7 @@ The Actor reads Apple's public RSS and lookup endpoints. It needs no login, no p
 | `apps` | array of strings | required | Numeric ids (`389801252`), ids with prefix (`id389801252`) or App Store URLs. |
 | `countries` | array of strings | `["us"]` | Two-letter App Store country codes. |
 | `maxReviewsPerApp` | integer | `100` | Reviews for each app and country. Maximum `500`. Use `0` for metadata only. |
-| `includeMetadata` | boolean | `true` | Add one `app` item for each app and country. |
+| `includeMetadata` | boolean | `false` | Add one `app` row for each app and country. Shown in the **Apps** output view. Each review row always has `appName`. |
 | `onlyNewReviews` | boolean | `false` | Emit only reviews newer than the last run. State is kept in the named key-value store `appstore-reviews-state`. |
 | `stateKey` | string | empty | Keeps the saved state of one task apart from other tasks that track the same app. Use a different value for each task. |
 | `sinceDate` | string | none | ISO date. Older reviews are skipped. |
@@ -48,6 +48,7 @@ Review item:
 {
   "type": "review",
   "appId": "570060128",
+  "appName": "Duolingo: Language Lessons",
   "country": "us",
   "reviewId": "14629312959",
   "title": "Great for daily practice",
