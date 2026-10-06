@@ -1,5 +1,5 @@
 import { log } from 'apify';
-import { fetchJson, HttpError, lookupUrl, reviewsUrl, type FetchOptions } from './fetch.js';
+import { fetchJson, HttpError, lookupUrl, reviewsUrl, reviewsUrlAlt, type FetchOptions } from './fetch.js';
 import { normaliseLookup, normaliseReviewsFeed } from './normalise.js';
 import type { AppItem, AppState, ReviewItem } from './types.js';
 
@@ -66,7 +66,11 @@ export async function fetchReviewsResult(q: ReviewQuery): Promise<ReviewResult> 
             }
             throw err;
         }
-        const reviews = normaliseReviewsFeed(json, q.appId, q.country, scrapedAt);
+        let reviews = normaliseReviewsFeed(json, q.appId, q.country, scrapedAt);
+        if (reviews.length === 0 && page === 1) {
+            // Apple sometimes serves an empty page-1 feed from a cache. Retry on both URL forms before giving up.
+            reviews = await retryEmptyFirstPage(q, scrapedAt, json);
+        }
         if (reviews.length === 0) break;
 
         let reachedCutoff = false;
@@ -89,6 +93,27 @@ export async function fetchReviewsResult(q: ReviewQuery): Promise<ReviewResult> 
         if (reachedCutoff) break; // feed is newest first, so everything after is older
     }
     return { reviews: out, complete };
+}
+
+const EMPTY_RETRY_DELAYS_MS = [1500, 4000];
+
+async function retryEmptyFirstPage(q: ReviewQuery, scrapedAt: string, firstJson: unknown): Promise<ReviewItem[]> {
+    const sleep = q.fetchOptions?.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
+    const urls = [reviewsUrlAlt(q.appId, q.country, 1), reviewsUrl(q.appId, q.country, 1), reviewsUrlAlt(q.appId, q.country, 1)];
+    for (let i = 0; i < urls.length; i++) {
+        if (i > 0) await sleep(EMPTY_RETRY_DELAYS_MS[i - 1]);
+        try {
+            const json = await fetchJson(urls[i], q.fetchOptions);
+            const reviews = normaliseReviewsFeed(json, q.appId, q.country, scrapedAt);
+            if (reviews.length > 0) return reviews;
+        } catch {
+            // try the next form
+        }
+    }
+    const feed = (firstJson as { feed?: Record<string, unknown> } | null)?.feed;
+    const keys = feed ? Object.keys(feed).join(',') : 'no feed';
+    log.warning(`${q.appId}/${q.country}: Apple returned an empty review feed on 4 tries (feed keys: ${keys}).`);
+    return [];
 }
 
 /** Same as fetchReviewsResult, but returns only the reviews. */

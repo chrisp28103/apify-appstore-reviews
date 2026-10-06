@@ -18,6 +18,10 @@ const defaultSleep = (ms: number) => new Promise<void>((resolve) => setTimeout(r
 export const reviewsUrl = (appId: string, country: string, page: number) =>
     `https://itunes.apple.com/${country}/rss/customerreviews/page=${page}/id=${appId}/sortby=mostrecent/json`;
 
+/** Same feed with the store passed as ?cc=. Apple sometimes serves an empty feed on one form and not the other. */
+export const reviewsUrlAlt = (appId: string, country: string, page: number) =>
+    `https://itunes.apple.com/rss/customerreviews/page=${page}/id=${appId}/sortby=mostrecent/json?cc=${country}`;
+
 export const lookupUrl = (appId: string, country: string) =>
     `https://itunes.apple.com/lookup?id=${appId}&country=${country}`;
 
