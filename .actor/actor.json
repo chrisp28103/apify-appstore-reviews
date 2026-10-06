@@ -5,6 +5,8 @@
   "description": "Scrape Apple App Store reviews and app metadata from Apple's public feeds. Filter by star rating and keyword, scrape many countries in one run, and get only new reviews on each run (incremental).",
   "version": "1.0",
   "buildTag": "latest",
+  "minMemoryMbytes": 128,
+  "defaultMemoryMbytes": 256,
   "dockerfile": "../Dockerfile",
   "input": "./input_schema.json",
   "storages": {
