@@ -1,4 +1,4 @@
-import type { ActorInput, ResolvedInput } from './types.js';
+import type { ActorInput, ResolvedInput, SortOrder } from './types.js';
 
 export const MAX_REVIEWS_LIMIT = 500;
 export const DEFAULT_MAX_REVIEWS = 100;
@@ -11,6 +11,26 @@ export function parseAppId(raw: unknown): string | null {
     if (/^id\d+$/i.test(value)) return value.slice(2);
     const match = value.match(/\/id(\d+)(?:[/?#]|$)/i) ?? value.match(/[?&]id=(\d+)/i);
     return match ? match[1] : null;
+}
+
+/** Return the entry when it looks like a reverse-DNS bundle id, such as com.duolingo.DuolingoMobile. Else null. */
+export function parseBundleId(raw: unknown): string | null {
+    if (typeof raw !== 'string') return null;
+    const value = raw.trim();
+    return /^[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+$/.test(value) ? value : null;
+}
+
+/** Charged app rows are for metadata-only runs. With reviews on, the app fields are on each review row. */
+export function shouldEmitAppRows(includeMetadata: boolean, maxReviewsPerApp: number): boolean {
+    return includeMetadata && maxReviewsPerApp === 0;
+}
+
+function parseStars(value: unknown, name: string): number | null {
+    if (value === undefined || value === null) return null;
+    if (typeof value !== 'number' || !Number.isInteger(value) || value < 1 || value > 5) {
+        throw new Error(`Input "${name}" must be a whole number from 1 to 5.`);
+    }
+    return value;
 }
 
 /** Validate a 2-letter country code. Returns the lower-case code or null. */
@@ -26,16 +46,20 @@ export function resolveInput(input: ActorInput | null | undefined): ResolvedInpu
     const raw = input ?? {};
 
     const appIds: string[] = [];
+    const bundleIds: string[] = [];
     for (const entry of raw.apps ?? []) {
         const id = parseAppId(entry);
-        if (!id) {
-            warnings.push(`Skipped app "${String(entry)}": could not find a numeric app id.`);
-        } else if (!appIds.includes(id)) {
-            appIds.push(id);
+        const bundleId = id ? null : parseBundleId(entry);
+        if (id) {
+            if (!appIds.includes(id)) appIds.push(id);
+        } else if (bundleId) {
+            if (!bundleIds.includes(bundleId)) bundleIds.push(bundleId);
+        } else {
+            warnings.push(`Skipped app "${String(entry)}": could not find a numeric app id or a bundle id.`);
         }
     }
-    if (appIds.length === 0) {
-        throw new Error('Input "apps" has no valid app id. Use numeric ids, "id123" or App Store URLs.');
+    if (appIds.length === 0 && bundleIds.length === 0) {
+        throw new Error('Input "apps" has no valid app. Use numeric ids, "id123", App Store URLs or bundle ids.');
     }
 
     const countries: string[] = [];
@@ -73,14 +97,41 @@ export function resolveInput(input: ActorInput | null | undefined): ResolvedInpu
         }
     }
 
+    const minRating = parseStars(raw.minRating, 'minRating');
+    const maxRating = parseStars(raw.maxRating, 'maxRating');
+    if (minRating !== null && maxRating !== null && minRating > maxRating) {
+        throw new Error(`Input "minRating" (${minRating}) is higher than "maxRating" (${maxRating}).`);
+    }
+
+    const keywords = (raw.keywords ?? [])
+        .filter((k): k is string => typeof k === 'string')
+        .map((k) => k.trim().toLowerCase())
+        .filter((k) => k.length > 0);
+
+    const sort: SortOrder = raw.sort ?? 'mostrecent';
+    if (sort !== 'mostrecent' && sort !== 'mosthelpful') {
+        throw new Error('Input "sort" must be "mostrecent" or "mosthelpful".');
+    }
+    let onlyNewReviews = raw.onlyNewReviews ?? false;
+    if (onlyNewReviews && sort !== 'mostrecent') {
+        warnings.push('onlyNewReviews needs sort "mostrecent". The Actor ignores onlyNewReviews for this run.');
+        onlyNewReviews = false;
+    }
+
     return {
         appIds,
+        bundleIds,
         countries,
         maxReviewsPerApp,
         includeMetadata: raw.includeMetadata ?? false,
-        onlyNewReviews: raw.onlyNewReviews ?? false,
+        onlyNewReviews,
         sinceDate,
         stateKey: typeof raw.stateKey === 'string' ? raw.stateKey.trim().replace(/[^A-Za-z0-9!_.*'()-]/g, '-') : '',
+        sort,
+        minRating,
+        maxRating,
+        keywords: [...new Set(keywords)],
+        proxyConfiguration: raw.proxyConfiguration && typeof raw.proxyConfiguration === 'object' ? raw.proxyConfiguration : null,
         warnings,
     };
 }

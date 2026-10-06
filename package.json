@@ -5,7 +5,9 @@
   "type": "module",
   "license": "MIT",
   "author": "Chris Perry",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "build": "tsc",
     "start": "node dist/main.js",
@@ -14,7 +16,8 @@
     "lint": "tsc --noEmit -p tsconfig.lint.json"
   },
   "dependencies": {
-    "apify": "^3.2.0"
+    "apify": "^3.2.0",
+    "undici": "^6.29.0"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",

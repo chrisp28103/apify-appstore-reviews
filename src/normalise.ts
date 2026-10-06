@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { toArray } from './parse.js';
-import type { AppItem, ReviewItem } from './types.js';
+import type { AppItem, ReviewItem, SortOrder } from './types.js';
 
 type Label = { label?: string } | undefined;
 const label = (node: Label): string => (node && typeof node.label === 'string' ? node.label : '');
@@ -63,4 +63,15 @@ export function normaliseLookup(json: any, appId: string, country: string, scrap
         url: result.trackViewUrl ?? '',
         scrapedAt,
     };
+}
+
+/** Copy the app fields from the lookup onto a review row. Fields are null when the lookup found no app. */
+export function addAppFields(review: ReviewItem, app: AppItem | null, sort: SortOrder): void {
+    review.appName = app?.name ?? null;
+    review.appDeveloper = app?.developer ?? null;
+    review.appBundleId = app?.bundleId ?? null;
+    review.appAverageRating = app?.averageRating ?? null;
+    review.appRatingCount = app?.ratingCount ?? null;
+    review.appUrl = app?.url ?? null;
+    review.sort = sort;
 }

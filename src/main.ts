@@ -1,7 +1,8 @@
 import { Actor, log } from 'apify';
-import { mapLimit } from './fetch.js';
-import { resolveInput } from './parse.js';
-import { fetchAppMetadata, fetchReviewsResult, newestState } from './scrape.js';
+import { createProxyFetch, mapLimit, type FetchOptions } from './fetch.js';
+import { addAppFields } from './normalise.js';
+import { resolveInput, shouldEmitAppRows } from './parse.js';
+import { fetchAppMetadata, fetchReviewsResult, nextState, resolveBundleId } from './scrape.js';
 import type { ActorInput, AppState } from './types.js';
 
 const CONCURRENCY = 3;
@@ -18,6 +19,33 @@ try {
     const input = resolveInput(await Actor.getInput<ActorInput>());
     for (const w of input.warnings) log.warning(w);
 
+    let fetchOptions: FetchOptions | undefined;
+    if (input.proxyConfiguration) {
+        const proxy = await Actor.createProxyConfiguration(input.proxyConfiguration);
+        if (proxy) {
+            fetchOptions = { fetchImpl: createProxyFetch(() => proxy.newUrl()) };
+            log.info('Fetching through the proxy.');
+        }
+    }
+
+    const appIds = [...input.appIds];
+    for (const bundleId of input.bundleIds) {
+        try {
+            const id = await resolveBundleId(bundleId, input.countries[0], fetchOptions);
+            if (!id) log.warning(`Skipped bundle id "${bundleId}": not found in store "${input.countries[0]}".`);
+            else if (!appIds.includes(id)) appIds.push(id);
+        } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            log.warning(`Skipped bundle id "${bundleId}": lookup failed (${msg}).`);
+        }
+    }
+    if (appIds.length === 0) throw new Error('No app to scrape. No bundle id could be resolved.');
+
+    const emitAppRows = shouldEmitAppRows(input.includeMetadata, input.maxReviewsPerApp);
+    if (input.includeMetadata && !emitAppRows) {
+        log.info('App fields are on each review row (appName, appDeveloper, and more). The Actor emits no separate app rows.');
+    }
+
     const state = input.onlyNewReviews ? await Actor.openKeyValueStore('appstore-reviews-state') : null;
     let limitReached = false;
 
@@ -30,7 +58,7 @@ try {
             : { chargedCount: count, eventChargeLimitReached: false };
     const counts = { apps: 0, reviews: 0, failed: 0 };
 
-    const jobs = input.appIds.flatMap((appId) => input.countries.map((country) => ({ appId, country })));
+    const jobs = appIds.flatMap((appId) => input.countries.map((country) => ({ appId, country })));
     log.info(`Scraping ${jobs.length} app and country pairs.`);
 
     const results = await mapLimit(jobs, CONCURRENCY, async ({ appId, country }) => {
@@ -40,13 +68,13 @@ try {
         // Always look up the app (free, no charge) so each review row carries the app name.
         let app = null;
         try {
-            app = await fetchAppMetadata(appId, country);
+            app = await fetchAppMetadata(appId, country, fetchOptions);
         } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
             log.warning(`${tag}: metadata failed (${msg}). Continuing with reviews.`);
         }
 
-        if (input.includeMetadata) {
+        if (emitAppRows) {
             if (app) {
                 const charged = await charge('app-metadata');
                 if (charged.chargedCount < 1) {
@@ -65,14 +93,19 @@ try {
 
         const stateKey = `${input.stateKey ? `${input.stateKey}-` : ''}${appId}-${country}`;
         const previous = state ? await state.getValue<AppState>(stateKey) : null;
-        const { reviews, complete } = await fetchReviewsResult({
+        const { reviews, complete, newestSeen } = await fetchReviewsResult({
             appId,
             country,
             maxReviews: input.maxReviewsPerApp,
             sinceDate: input.sinceDate,
             state: previous,
+            sort: input.sort,
+            minRating: input.minRating,
+            maxRating: input.maxRating,
+            keywords: input.keywords,
+            fetchOptions,
         });
-        for (const r of reviews) r.appName = app?.name ?? null;
+        for (const r of reviews) addAppFields(r, app, input.sort);
 
         const pushed = [];
         for (let i = 0; i < reviews.length && !limitReached; i += BATCH_SIZE) {
@@ -92,9 +125,10 @@ try {
 
         // Move the saved state only when every new review was pushed. Else the unpushed older reviews are lost for good.
         const allPushed = complete && pushed.length === reviews.length;
-        const newest = newestState(pushed);
-        if (state && newest && allPushed && (!previous || new Date(newest.date) > new Date(previous.date))) {
-            await state.setValue(stateKey, newest);
+        // Filtered-out new reviews are skipped on purpose, so the state moves to the newest review SEEN.
+        const next = state && allPushed ? nextState(previous, newestSeen) : null;
+        if (state && next) {
+            await state.setValue(stateKey, next);
         } else if (state && pushed.length > 0 && !allPushed) {
             log.warning(`${tag}: run stopped early. Saved state not moved, so the next run can emit the same reviews again. Raise maxReviewsPerApp or the max charge.`);
         }

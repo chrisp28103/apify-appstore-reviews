@@ -4,14 +4,16 @@
   "views": {
     "overview": {
       "title": "Reviews",
-      "description": "One row per review. Turn on 'Include app metadata' to add app rows, and use the Apps view for them.",
+      "description": "One row per review. Each row has the app name, developer and average stars.",
       "transformation": {
-        "fields": ["appName", "country", "rating", "title", "text", "author", "date", "version", "appId"]
+        "fields": ["appName", "appDeveloper", "appAverageRating", "country", "rating", "title", "text", "author", "date", "version", "appId"]
       },
       "display": {
         "component": "table",
         "properties": {
           "appName": { "label": "App", "format": "text" },
+          "appDeveloper": { "label": "Developer", "format": "text" },
+          "appAverageRating": { "label": "App average stars", "format": "number" },
           "country": { "label": "Country", "format": "text" },
           "rating": { "label": "Stars", "format": "number" },
           "title": { "label": "Review title", "format": "text" },
@@ -25,7 +27,7 @@
     },
     "apps": {
       "title": "Apps",
-      "description": "App metadata rows. Only filled when 'Include app metadata' is on.",
+      "description": "App metadata rows. Only filled in metadata-only runs: turn on 'Include app metadata' and set Max reviews to 0.",
       "transformation": {
         "fields": ["name", "country", "developer", "averageRating", "ratingCount", "version", "price", "currency", "genres", "url", "appId"]
       },

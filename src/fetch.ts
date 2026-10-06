@@ -13,20 +13,41 @@ export interface FetchOptions {
     sleep?: (ms: number) => Promise<void>;
 }
 
+export type SortBy = 'mostrecent' | 'mosthelpful';
+
 const defaultSleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
-export const reviewsUrl = (appId: string, country: string, page: number) =>
-    `https://itunes.apple.com/${country}/rss/customerreviews/page=${page}/id=${appId}/sortby=mostrecent/json`;
+export const reviewsUrl = (appId: string, country: string, page: number, sort: SortBy = 'mostrecent') =>
+    `https://itunes.apple.com/${country}/rss/customerreviews/page=${page}/id=${appId}/sortby=${sort}/json`;
 
 /** Same feed with the store passed as ?cc=. Apple sometimes serves an empty feed on one form and not the other. */
-export const reviewsUrlAlt = (appId: string, country: string, page: number) =>
-    `https://itunes.apple.com/rss/customerreviews/page=${page}/id=${appId}/sortby=mostrecent/json?cc=${country}`;
+export const reviewsUrlAlt = (appId: string, country: string, page: number, sort: SortBy = 'mostrecent') =>
+    `https://itunes.apple.com/rss/customerreviews/page=${page}/id=${appId}/sortby=${sort}/json?cc=${country}`;
 
 export const lookupUrl = (appId: string, country: string) =>
     `https://itunes.apple.com/lookup?id=${appId}&country=${country}`;
 
+export const bundleLookupUrl = (bundleId: string, country: string) =>
+    `https://itunes.apple.com/lookup?bundleId=${encodeURIComponent(bundleId)}&country=${country}`;
+
 /**
- * GET a URL and parse JSON. Retries on 429, 5xx, timeouts and network errors with
+ * Build a fetch function that sends each request through a proxy.
+ * newUrl gives a proxy URL for each request, so a rotating proxy can change the IP.
+ */
+export function createProxyFetch(newUrl: () => Promise<string | undefined>): typeof fetch {
+    const agents = new Map<string, unknown>();
+    return (async (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {
+        const undici = await import('undici');
+        const proxyUrl = await newUrl();
+        if (!proxyUrl) return fetch(input, init);
+        if (!agents.has(proxyUrl)) agents.set(proxyUrl, new undici.ProxyAgent(proxyUrl));
+        const dispatcher = agents.get(proxyUrl) as import('undici').Dispatcher;
+        return undici.fetch(input as Parameters<typeof undici.fetch>[0], { ...(init as object), dispatcher }) as unknown as Response;
+    }) as typeof fetch;
+}
+
+/**
+ * GET a URL and parse JSON. Retries on 403, 429, 5xx, timeouts and network errors with
  * exponential backoff. Other 4xx statuses throw HttpError at once. An empty body returns null.
  */
 export async function fetchJson(url: string, opts: FetchOptions = {}): Promise<any> {
@@ -48,7 +69,7 @@ export async function fetchJson(url: string, opts: FetchOptions = {}): Promise<a
             }
         } catch (err) {
             lastError = err;
-            const retryable = !(err instanceof HttpError) || err.status === 429 || err.status >= 500;
+            const retryable = !(err instanceof HttpError) || err.status === 429 || err.status === 403 || err.status >= 500;
             if (!retryable || attempt === retries) break;
             await sleep(baseDelayMs * 2 ** (attempt - 1));
         }
