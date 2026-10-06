@@ -342,7 +342,7 @@ describe('rating and keyword filters', () => {
         assert.deepEqual(r.reviews.map((x) => x.reviewId), ['m1']);
         assert.equal(r.complete, false);
     });
-    it('is incomplete when MAX_PAGES ends the run without the end of the feed', async () => {
+    it('is complete when all MAX_PAGES are read, because Apple serves no page 11', async () => {
         const pages: Record<number, ReturnType<typeof feedWith>> = {};
         for (let i = 1; i <= 10; i++) {
             pages[i] = feedWith([[`p${i}`, 1, 'x']]);
@@ -350,7 +350,7 @@ describe('rating and keyword filters', () => {
         }
         const r = await fetchReviewsResult({ ...baseQ, maxReviews: 5, minRating: 5, fetchOptions: { fetchImpl: pagesOf(pages) } });
         assert.deepEqual(r.reviews, []);
-        assert.equal(r.complete, false);
+        assert.equal(r.complete, true);
     });
     it('onlyNewReviews: the next run skips filtered reviews', async () => {
         const p1 = feedWith([['n1', 1, 'x'], ['n2', 5, 'x'], ['n3', 1, 'x']]);

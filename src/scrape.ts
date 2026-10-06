@@ -107,6 +107,7 @@ export async function fetchReviewsResult(q: ReviewQuery): Promise<ReviewResult> 
         }
 
         let reachedCutoff = false;
+        let cutShort = false;
         for (let i = 0; i < reviews.length; i++) {
             const review = reviews[i];
             if (isOld(review)) {
@@ -120,18 +121,21 @@ export async function fetchReviewsResult(q: ReviewQuery): Promise<ReviewResult> 
             out.push(review);
             if (out.length >= q.maxReviews) {
                 const rest = reviews.slice(i + 1);
+                cutShort = rest.length > 0;
                 // On a newest-first feed, an old review after the cut proves no new review is left.
                 if (sort === 'mostrecent' && (reachedCutoff || rest.some(isOld))) exhausted = true;
                 break;
             }
         }
+        // Apple serves 10 pages at most. Reviews past page 10 can never be read, so a fully read last page is the end.
+        if (page === MAX_PAGES && !cutShort) exhausted = true;
         // Only the newest-first feed lets us stop at the cutoff. A most-helpful feed has no date order.
         if (reachedCutoff && sort === 'mostrecent') {
             exhausted = true;
             break;
         }
     }
-    // Max reached or MAX_PAGES used up without the end of the feed: new reviews may be left unread.
+    // Max reached before the end of the feed: new reviews may be left unread.
     if (!exhausted) complete = false;
     return { reviews: out, complete, newestSeen: newestState(seenReviews) };
 }
