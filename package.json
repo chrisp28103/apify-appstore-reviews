@@ -1,0 +1,24 @@
+{
+  "name": "apify-appstore-reviews",
+  "version": "1.0.0",
+  "description": "Apify Actor that scrapes App Store reviews and app metadata from Apple's public feeds.",
+  "type": "module",
+  "license": "MIT",
+  "author": "Chris Perry",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/main.js",
+    "test": "tsx --test tests/*.test.ts",
+    "test:live": "tsx --test tests/live.smoke.test.ts",
+    "lint": "tsc --noEmit -p tsconfig.lint.json"
+  },
+  "dependencies": {
+    "apify": "^3.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.5.0"
+  }
+}

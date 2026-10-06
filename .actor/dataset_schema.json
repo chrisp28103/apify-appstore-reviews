@@ -1,0 +1,28 @@
+{
+  "actorSpecification": 1,
+  "fields": {},
+  "views": {
+    "overview": {
+      "title": "Overview",
+      "transformation": {
+        "fields": ["type", "appId", "country", "name", "title", "rating", "averageRating", "author", "date", "version", "text"]
+      },
+      "display": {
+        "component": "table",
+        "properties": {
+          "type": { "label": "Type", "format": "text" },
+          "appId": { "label": "App id", "format": "text" },
+          "country": { "label": "Country", "format": "text" },
+          "name": { "label": "App name", "format": "text" },
+          "title": { "label": "Review title", "format": "text" },
+          "rating": { "label": "Rating", "format": "number" },
+          "averageRating": { "label": "Average rating", "format": "number" },
+          "author": { "label": "Author", "format": "text" },
+          "date": { "label": "Date", "format": "date" },
+          "version": { "label": "Version", "format": "text" },
+          "text": { "label": "Review text", "format": "text" }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "title": "App Store Reviews & Metadata input",
+  "type": "object",
+  "schemaVersion": 1,
+  "properties": {
+    "apps": {
+      "title": "Apps",
+      "type": "array",
+      "description": "App Store apps to scrape. Use numeric ids (389801252), ids with prefix (id389801252) or App Store URLs.",
+      "editor": "stringList",
+      "prefill": ["https://apps.apple.com/us/app/duolingo-language-lessons/id570060128"]
+    },
+    "countries": {
+      "title": "Countries",
+      "type": "array",
+      "description": "Two-letter App Store country codes, for example us, gb, de.",
+      "editor": "stringList",
+      "default": ["us"],
+      "prefill": ["us"]
+    },
+    "maxReviewsPerApp": {
+      "title": "Max reviews per app and country",
+      "type": "integer",
+      "description": "Apple's feed gives about 500 reviews at most for each app and country.",
+      "default": 100,
+      "minimum": 0,
+      "maximum": 500
+    },
+    "includeMetadata": {
+      "title": "Include app metadata",
+      "type": "boolean",
+      "description": "Add one app item for each app and country.",
+      "default": true
+    },
+    "onlyNewReviews": {
+      "title": "Only new reviews",
+      "type": "boolean",
+      "description": "Emit only reviews newer than the last run. The Actor keeps the state in the named key-value store appstore-state.",
+      "default": false
+    },
+    "sinceDate": {
+      "title": "Since date",
+      "type": "string",
+      "description": "Optional ISO date, for example 2026-01-01. Older reviews are skipped.",
+      "editor": "textfield"
+    }
+  },
+  "required": ["apps"]
+}
