@@ -40,7 +40,11 @@ export function resolveInput(input: ActorInput | null | undefined): ResolvedInpu
 
     const countries: string[] = [];
     for (const entry of raw.countries && raw.countries.length > 0 ? raw.countries : ['us']) {
-        const code = parseCountry(entry);
+        let code = parseCountry(entry);
+        if (code === 'uk') {
+            warnings.push('Country "uk" changed to "gb", the App Store code for the United Kingdom.');
+            code = 'gb';
+        }
         if (!code) {
             warnings.push(`Skipped country "${String(entry)}": use a 2-letter code such as "us".`);
         } else if (!countries.includes(code)) {
@@ -76,6 +80,7 @@ export function resolveInput(input: ActorInput | null | undefined): ResolvedInpu
         includeMetadata: raw.includeMetadata ?? true,
         onlyNewReviews: raw.onlyNewReviews ?? false,
         sinceDate,
+        stateKey: typeof raw.stateKey === 'string' ? raw.stateKey.trim().replace(/[^A-Za-z0-9!_.*'()-]/g, '-') : '',
         warnings,
     };
 }

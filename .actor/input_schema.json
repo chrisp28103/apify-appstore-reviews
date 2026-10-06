@@ -35,8 +35,14 @@
     "onlyNewReviews": {
       "title": "Only new reviews",
       "type": "boolean",
-      "description": "Emit only reviews newer than the last run. The Actor keeps the state in the named key-value store appstore-state.",
+      "description": "Emit only reviews newer than the last run. The Actor keeps the state in the named key-value store appstore-reviews-state.",
       "default": false
+    },
+    "stateKey": {
+      "title": "State key",
+      "type": "string",
+      "description": "Optional name that keeps the saved state of this task apart from other tasks that track the same app. Use a different value for each task. Only used with Only new reviews.",
+      "editor": "textfield"
     },
     "sinceDate": {
       "title": "Since date",

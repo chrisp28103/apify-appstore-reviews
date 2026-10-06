@@ -19,7 +19,8 @@ The Actor reads Apple's public RSS and lookup endpoints. It needs no login, no p
 | `countries` | array of strings | `["us"]` | Two-letter App Store country codes. |
 | `maxReviewsPerApp` | integer | `100` | Reviews for each app and country. Maximum `500`. Use `0` for metadata only. |
 | `includeMetadata` | boolean | `true` | Add one `app` item for each app and country. |
-| `onlyNewReviews` | boolean | `false` | Emit only reviews newer than the last run. State is kept in the named key-value store `appstore-state`. |
+| `onlyNewReviews` | boolean | `false` | Emit only reviews newer than the last run. State is kept in the named key-value store `appstore-reviews-state`. |
+| `stateKey` | string | empty | Keeps the saved state of one task apart from other tasks that track the same app. Use a different value for each task. |
 | `sinceDate` | string | none | ISO date. Older reviews are skipped. |
 
 Example:
@@ -104,7 +105,8 @@ The Actor respects your maximum charge per run. When the limit is reached, the A
 - Some apps have no reviews in some countries. The Actor returns the app item and no review items.
 - Apple's feed can lag by some hours and sometimes drops reviews. Counts can differ a little from the App Store page.
 - Only text reviews with a star rating are in the feed. Ratings without text are not.
-- In `onlyNewReviews` mode, the Actor saves the newest review per app and country. Two reviews with the same timestamp as the saved one can be skipped.
+- In `onlyNewReviews` mode, the Actor saves the newest review per app and country, but only when it pushed every new review. If `maxReviewsPerApp`, a failed page, or the max charge stops the run early, the saved state stays the same. The next run can then emit some of the same reviews again, but it never skips a review. For a busy app, set `maxReviewsPerApp` high enough for the reviews that arrive between runs.
+- Tasks that track the same app share one saved state. Set a different `stateKey` in each task.
 
 ## Reliability
 
@@ -126,7 +128,7 @@ Open the app page on the App Store. The URL ends with `id` and a number, for exa
 Set `onlyNewReviews` to `true` and schedule the Actor daily. The first run returns the latest reviews. Later runs return only newer ones.
 
 **Can I get more than 500 reviews?**
-No. Apple's feed limits each app and country to about 500. Run the Actor on a schedule with `onlyNewReviews` to build a longer history over time.
+No. Apple's feed limits each app and country to about 500. Run the Actor on a schedule with `onlyNewReviews` to build a longer history over time. Run it often enough that fewer than `maxReviewsPerApp` new reviews arrive between runs.
 
 **Does it scrape Google Play?**
 No. This Actor is for the Apple App Store only.

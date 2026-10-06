@@ -5,6 +5,7 @@ export interface ActorInput {
     includeMetadata?: boolean;
     onlyNewReviews?: boolean;
     sinceDate?: string;
+    stateKey?: string;
 }
 
 export interface ResolvedInput {
@@ -14,6 +15,7 @@ export interface ResolvedInput {
     includeMetadata: boolean;
     onlyNewReviews: boolean;
     sinceDate: Date | null;
+    stateKey: string;
     warnings: string[];
 }
 

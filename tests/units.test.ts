@@ -4,7 +4,7 @@ import { describe, it } from 'node:test';
 import { fetchJson, HttpError, mapLimit } from '../src/fetch.js';
 import { normaliseLookup, normaliseReviewsFeed } from '../src/normalise.js';
 import { parseAppId, parseCountry, resolveInput } from '../src/parse.js';
-import { fetchReviews, newestState } from '../src/scrape.js';
+import { fetchReviews, fetchReviewsResult, newestState } from '../src/scrape.js';
 
 const fixture = (name: string) => JSON.parse(readFileSync(new URL(`./fixtures/${name}`, import.meta.url), 'utf8'));
 const NOW = '2026-10-06T00:00:00.000Z';
@@ -212,4 +212,40 @@ describe('fetchReviews', () => {
 
 describe('newestState', () => {
     it('returns null for empty input', () => assert.equal(newestState([]), null));
+});
+
+describe('fetchReviewsResult and state safety', () => {
+    const pages = (map: Record<number, unknown>, failFrom = 99) =>
+        (async (url: string) => {
+            const page = Number(/page=(\d+)/.exec(String(url))![1]);
+            if (page >= failFrom) return res(500);
+            if (!(page in map)) return res(400);
+            return res(200, JSON.stringify(map[page]));
+        }) as unknown as typeof fetch;
+    const base = { appId: '1', country: 'us', sinceDate: null, state: null };
+    const fo = (fetchImpl: typeof fetch) => ({ fetchImpl, retries: 1, sleep: async () => {} });
+
+    it('marks the result incomplete when maxReviews cuts the run', async () => {
+        const r = await fetchReviewsResult({ ...base, maxReviews: 20, fetchOptions: fo(pages({ 1: fakePage(0, 50) })) });
+        assert.equal(r.reviews.length, 20);
+        assert.equal(r.complete, false);
+    });
+    it('marks the result complete when the feed ends', async () => {
+        const r = await fetchReviewsResult({ ...base, maxReviews: 500, fetchOptions: fo(pages({ 1: fakePage(0, 10) })) });
+        assert.equal(r.complete, true);
+    });
+    it('keeps earlier pages when a later page fails', async () => {
+        const r = await fetchReviewsResult({ ...base, maxReviews: 500, fetchOptions: fo(pages({ 1: fakePage(0, 50), 2: fakePage(50, 50) }, 2)) });
+        assert.equal(r.reviews.length, 50);
+        assert.equal(r.complete, false);
+    });
+    it('returns an empty list on a 400 at page 1', async () => {
+        const r = await fetchReviewsResult({ ...base, maxReviews: 50, fetchOptions: fo(pages({})) });
+        assert.deepEqual(r, { reviews: [], complete: true });
+    });
+    it('maps uk to gb with a warning', () => {
+        const r = resolveInput({ apps: ['1'], countries: ['uk'] });
+        assert.deepEqual(r.countries, ['gb']);
+        assert.equal(r.warnings.length, 1);
+    });
 });
